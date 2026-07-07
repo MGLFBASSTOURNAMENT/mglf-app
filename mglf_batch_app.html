@@ -200,36 +200,29 @@
     let form = document.createElement('form');
     form.method = 'POST';
     form.action = 'http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi';
-    form.acceptCharset = 'Shift-JIS';
+    // 👇ここを修正！CGIがUTF-8で待っているので、UTF-8で送信します
+    form.acceptCharset = 'UTF-8';
 
-    // 名前
+    // 名前 (namae)
     let inputNamae = document.createElement('input');
     inputNamae.type = 'hidden';
     inputNamae.name = 'namae';
     inputNamae.value = record.name;
     form.appendChild(inputNamae);
 
-    // 重量（※ここを「weight」に修正しました！）
+    // 重量 (g)
     let inputG = document.createElement('input');
     inputG.type = 'hidden';
-    inputG.name = 'weight';
+    inputG.name = 'g';
     inputG.value = record.weight;
     form.appendChild(inputG);
 
-    // サイズ
+    // サイズ (cm)
     let inputCm = document.createElement('input');
     inputCm.type = 'hidden';
     inputCm.name = 'cm';
     inputCm.value = record.cm;
     form.appendChild(inputCm);
-
-    // 本物の「入力」ボタンのフリをする身代わり
-    let btnSubmit = document.createElement('input');
-    btnSubmit.type = 'submit';
-    btnSubmit.name = 'action';
-    btnSubmit.value = '入力';
-    btnSubmit.style.display = 'none';
-    form.appendChild(btnSubmit);
 
     // 送るデータを「送信済(1)」にして保存する
     record.status = 1;
