@@ -193,42 +193,50 @@
         return;
     }
 
-    // WAKWAKのCGIへデータを送るための、見えないフォームをその場で作る
+    // 1件目のデータを取り出す
+    let record = unsentRecords[0];
+
+    // WAKWAKのCGIへデータを送るための、見えないフォームを作る
     let form = document.createElement('form');
     form.method = 'POST';
     form.action = 'http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi';
+    form.acceptCharset = 'Shift-JIS';
 
-    // 溜まっている未送信データをすべて繋げて1つのフォームにする
-    unsentRecords.forEach((record, index) => {
-        // ※CGI側の受け取り形式に合わせて調整が必要な場合があります
-        // 今回はシンプルに最初の1件、またはループで追加する形にします
-        let inputNamae = document.createElement('input');
-        inputNamae.type = 'hidden';
-        inputNamae.name = 'namae';
-        inputNamae.value = record.name;
-        form.appendChild(inputNamae);
+    // CGIが指定している正しい名前（namae, g, cm）でデータをセットする
+    let inputNamae = document.createElement('input');
+    inputNamae.type = 'hidden';
+    inputNamae.name = 'namae';
+    inputNamae.value = record.name;
+    form.appendChild(inputNamae);
 
-        let inputG = document.createElement('input');
-        inputG.type = 'hidden';
-        inputG.name = 'g';
-        inputG.value = record.weight;
-        form.appendChild(inputG);
+    let inputG = document.createElement('input');
+    inputG.type = 'hidden';
+    inputG.name = 'g';
+    inputG.value = record.weight;
+    form.appendChild(inputG);
 
-        let inputCm = document.createElement('input');
-        inputCm.type = 'hidden';
-        inputCm.name = 'cm';
-        inputCm.value = record.cm;
-        form.appendChild(inputCm);
-    });
+    let inputCm = document.createElement('input');
+    inputCm.type = 'hidden';
+    inputCm.name = 'cm';
+    inputCm.value = record.cm;
+    form.appendChild(inputCm);
 
-    // すべてのデータを「送信済」にして保存する
-    fishRecords.forEach(r => r.status = 1);
+    // CGIを動かすための「入力ボタン」のデータも一緒に送る
+    let inputSubmit = document.createElement('input');
+    inputSubmit.type = 'hidden';
+    inputSubmit.name = 'mode';  // ※CGIの仕様に合わせて 'mode' や 'submit' に調整
+    inputSubmit.value = '入力';
+    form.appendChild(inputSubmit);
+
+    // 送るデータを「送信済(1)」にして保存する
+    record.status = 1;
     localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-    // フォームを画面に追加して、WAKWAKへ向けて強制送信（ジャンプ）させる
+    // フォームを画面に追加して送信！
     document.body.appendChild(form);
     form.submit();
 }
+
 
         function clearAllData() {
             if (confirm("端末内のデータをすべて削除します。よろしいですか？（サーバーのデータは消えません）")) {
