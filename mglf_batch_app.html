@@ -185,57 +185,50 @@
             timeArea.innerHTML = getNowTimeString() + " 現在";
         }
 
-        async function syncToServer() {
-            const statusArea = document.getElementById('sync_status');
-            let unsentRecords = fishRecords.filter(r => r.status === 0);
+        function syncToServer() {
+    let unsentRecords = fishRecords.filter(r => r.status === 0);
 
-            if (unsentRecords.length === 0) {
-                statusArea.style.color = "blue";
-                statusArea.innerText = "未送信のデータはありません。";
-                return;
-            }
+    if (unsentRecords.length === 0) {
+        alert("未送信のデータはありません。");
+        return;
+    }
 
-            statusArea.style.color = "black";
-            statusArea.innerText = `同期中... (0 / ${unsentRecords.length})`;
+    // WAKWAKのCGIへデータを送るための、見えないフォームをその場で作る
+    let form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi';
 
-            let successCount = 0;
+    // 溜まっている未送信データをすべて繋げて1つのフォームにする
+    unsentRecords.forEach((record, index) => {
+        // ※CGI側の受け取り形式に合わせて調整が必要な場合があります
+        // 今回はシンプルに最初の1件、またはループで追加する形にします
+        let inputNamae = document.createElement('input');
+        inputNamae.type = 'hidden';
+        inputNamae.name = 'namae';
+        inputNamae.value = record.name;
+        form.appendChild(inputNamae);
 
-            for (let i = 0; i < unsentRecords.length; i++) {
-                let record = unsentRecords[i];
-                
-                let params = new URLSearchParams();
-                params.append('namae', record.name);
-                params.append('g', record.weight);
-                params.append('cm', record.cm);
+        let inputG = document.createElement('input');
+        inputG.type = 'hidden';
+        inputG.name = 'g';
+        inputG.value = record.weight;
+        form.appendChild(inputG);
 
-                try {
-                    await fetch(CGI_URL, {
-                        method: 'POST',
-                        body: params,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        mode: 'cors' 
-                    });
+        let inputCm = document.createElement('input');
+        inputCm.type = 'hidden';
+        inputCm.name = 'cm';
+        inputCm.value = record.cm;
+        form.appendChild(inputCm);
+    });
 
-                    record.status = 1;
-                    successCount++;
-                    statusArea.innerText = `同期中... (${successCount} / ${unsentRecords.length})`;
-                } catch (error) {
-                    statusArea.style.color = "red";
-                    statusArea.innerText = "同期エラー。電波が良い場所で再度お試しください。";
-                    break;
-                }
-            }
+    // すべてのデータを「送信済」にして保存する
+    fishRecords.forEach(r => r.status = 1);
+    localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-            localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
-            updateDisplay();
-
-            if (successCount === unsentRecords.length) {
-                statusArea.style.color = "green";
-                statusArea.innerText = ` すべてのデータ (${successCount}件) の一括送信が完了しました！`;
-            }
-        }
+    // フォームを画面に追加して、WAKWAKへ向けて強制送信（ジャンプ）させる
+    document.body.appendChild(form);
+    form.submit();
+}
 
         function clearAllData() {
             if (confirm("端末内のデータをすべて削除します。よろしいですか？（サーバーのデータは消えません）")) {
