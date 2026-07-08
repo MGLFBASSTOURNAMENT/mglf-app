@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
 <link rel="manifest" href="manifest.json">
-
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
@@ -85,7 +83,7 @@
     <div class="log-box" id="log_area">履歴はありません</div>
 
     <script>
-        // CGIのパス（実際の環境に合わせて調整してください）
+        // CGIのパス
         const CGI_URL = "https://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi";
 
         // ローカル保存データ
@@ -108,7 +106,6 @@
             if (weightInput < 400) { msgArea.innerHTML = "キーパー外（400g未満）です。"; return; }
             if (!cmInput) { msgArea.innerHTML = "cm（サイズ）が入力されていません。"; return; }
 
-            // status: 0 (未送信), 1 (送信済)
             fishRecords.push({
                 name: nameInput,
                 weight: weightInput,
@@ -142,7 +139,6 @@
                 return;
             }
 
-            // 未送信カウント
             let unsent = fishRecords.filter(r => r.status === 0).length;
             if (unsent > 0) {
                 badge.innerText = unsent;
@@ -151,7 +147,6 @@
                 badge.style.display = "none";
             }
 
-            // 履歴
             let logHtml = "";
             for(let i = fishRecords.length - 1; i >= 0; i--) {
                 let r = fishRecords[i];
@@ -160,7 +155,6 @@
             }
             logArea.innerHTML = logHtml;
 
-            // ランキングロジック
             let userWeights = {};
             fishRecords.forEach(r => {
                 if (!userWeights[r.name]) userWeights[r.name] = [];
@@ -185,55 +179,46 @@
             timeArea.innerHTML = getNowTimeString() + " 現在";
         }
 
-  function syncToServer() {
-    let unsentRecords = fishRecords.filter(r => r.status === 0);
+        function syncToServer() {
+            let unsentRecords = fishRecords.filter(r => r.status === 0);
 
-    if (unsentRecords.length === 0) {
-        alert("未送信のデータはありません。");
-        return;
-    }
+            if (unsentRecords.length === 0) {
+                alert("未送信のデータはありません。");
+                return;
+            }
 
-    // 1件目のデータを取り出す
-    let record = unsentRecords[0];
+            let record = unsentRecords[0];
 
-    // WAKWAKのCGIへデータを送るための、見えないフォームを作る
-    let form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi';
-    // 👇ここを修正！CGIがUTF-8で待っているので、UTF-8で送信します
-    form.acceptCharset = 'UTF-8';
+            let form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi';
+            form.acceptCharset = 'UTF-8';
+            form.target = '_blank';
 
-    // 名前 (namae)
-    let inputNamae = document.createElement('input');
-    inputNamae.type = 'hidden';
-    inputNamae.name = 'namae';
-    inputNamae.value = record.name;
-    form.appendChild(inputNamae);
+            let inputNamae = document.createElement('input');
+            inputNamae.type = 'hidden';
+            inputNamae.name = 'namae';
+            inputNamae.value = record.name;
+            form.appendChild(inputNamae);
 
-    // 重量 (g)
-    let inputG = document.createElement('input');
-    inputG.type = 'hidden';
-    inputG.name = 'g';
-    inputG.value = record.weight;
-    form.appendChild(inputG);
+            let inputG = document.createElement('input');
+            inputG.type = 'hidden';
+            inputG.name = 'g';
+            inputG.value = record.weight;
+            form.appendChild(inputG);
 
-    // サイズ (cm)
-    let inputCm = document.createElement('input');
-    inputCm.type = 'hidden';
-    inputCm.name = 'cm';
-    inputCm.value = record.cm;
-    form.appendChild(inputCm);
+            let inputCm = document.createElement('input');
+            inputCm.type = 'hidden';
+            inputCm.name = 'cm';
+            inputCm.value = record.cm;
+            form.appendChild(inputCm);
 
-    // 送るデータを「送信済(1)」にして保存する
-    record.status = 1;
-    localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
+            record.status = 1;
+            localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-    // フォームを画面に追加して送信！
-    document.body.appendChild(form);
-    form.submit();
-}
-
-
+            document.body.appendChild(form);
+            form.submit();
+        }
 
         function clearAllData() {
             if (confirm("端末内のデータをすべて削除します。よろしいですか？（サーバーのデータは消えません）")) {
@@ -250,11 +235,10 @@
             return `${String(now.getFullYear()).slice(-2)}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}(${['日','月','火','水','木','金','土'][now.getDay()]})${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         }
     </script>
-<!-- ここから追加 -->
+
     <hr>
     <div style="margin-top: 15px; margin-bottom: 20px;">
         <input type="button" value=" MGLFトップページへ戻る " onclick="location.href='https://park22.wakwak.com/~mglf/'" style="background-color: #6c757d; color: white; border: none; width: 100%; font-weight: bold; height: 3em; cursor: pointer; font-size: 16px; border-radius: 4px;">
     </div>
-    <!-- ここまで追加 -->
 </body>
 </html>
