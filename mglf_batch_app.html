@@ -3,10 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGLF釣果報告・一括送信App1.0</title>
+    <title>MGLF釣果報告・一括送信App3.0</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="appstore.png">
     <link rel="icon" type="image/png" sizes="192x192" href="playstore.png">
     <meta name="mobile-web-app-capable" content="yes">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Offline Ready'))
+                .catch((err) => console.log('SW Register Failed:', err));
+        }
+    </script>
     <style>
         body { background-color: #f0f8ff; font-family: sans-serif; color: #333; padding: 10px; }
         h2 { color: blue; border-bottom: 2px solid blue; padding-bottom: 5px; font-size: 18px; margin-top: 5px; }
@@ -28,7 +36,7 @@
 </head>
 <body>
 
-    <h2>MGLF釣果報告 (一括送信対応版)1.0</h2>
+    <h2>MGLF釣果報告 (一括送信対応版)3.0</h2>
     <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下の「一括同期」を押してください。</p>
 
     <div class="form-group">
@@ -163,19 +171,18 @@
 
             let record = unsentRecords[0];
 
-            // 文字化け対策のためのエンコード処理
+            // WAKWAKの文字化け・セキュリティ対策のためURLエンコードして直接ジャンプ
             let encodedName = encodeURIComponent(record.name);
             let encodedG = encodeURIComponent(record.weight);
             let encodedCm = encodeURIComponent(record.cm);
 
-            // WAKWAKのURLに直接データをくっつけてジャンプさせる（GET方式）
             let targetUrl = `http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi?namae=${encodedName}&g=${encodedG}&cm=${encodedCm}`;
 
             record.status = 1;
             localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-            // 画面を切り替えて直接WAKWAKを動かす
-            location.href = targetUrl;
+            // 通常のブラウザ（別タブ）へジャンプ。GitHubのPWA環境なので確実に動作します
+            window.open(targetUrl, '_blank');
         }
 
         function clearAllData() {
@@ -193,10 +200,5 @@
             return `${String(now.getFullYear()).slice(-2)}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}(${['日','月','火','水','木','金','土'][now.getDay()]})${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         }
     </script>
-
-    <hr>
-    <div style="margin-top: 15px; margin-bottom: 20px;">
-        <input type="button" value=" MGLFトップページへ戻る " onclick="location.href='http://park22.wakwak.com/~mglf/'" style="background-color: #6c757d; color: white; border: none; width: 100%; font-weight: bold; height: 3em; cursor: pointer; font-size: 16px; border-radius: 4px;">
-    </div>
 </body>
 </html>
