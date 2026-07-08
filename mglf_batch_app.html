@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGLF釣果報告・一括送信App7.0</title>
+    <title>MGLF釣果報告・一括送信App8.0</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="appstore.png">
     <link rel="icon" type="image/png" sizes="192x192" href="playstore.png">
@@ -36,7 +36,7 @@
 </head>
 <body>
 
-    <h2>MGLF釣果報告 (一括送信対応版)7.0</h2>
+    <h2>MGLF釣果報告 (一括送信対応版)8.0</h2>
     <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下の「一括同期」を押してください。</p>
 
     <div class="form-group">
@@ -59,7 +59,6 @@
 
     <div id="msg_area"></div>
 
-    <!-- 同期ボタン（JavaScriptで処理を完全にコントロールします） -->
     <input type="button" class="btn-sync" id="sync_btn" value=" 電波復帰時にサーバーへ一括同期 " onclick="syncAllRecords()">
     <div id="sync_status" style="font-size: 14px; font-weight: bold; margin-top: 5px;"></div>
 
@@ -73,16 +72,6 @@
     <hr>
     <h3>未送信の釣果履歴 <span id="unsent_count" class="badge" style="display:none;">0</span></h3>
     <div class="log-box" id="log_area">履歴はありません</div>
-
-    <!-- 画面を動かさずに裏でPOST送信するための「見えない空気孔（iframe）」 -->
-    <iframe name="hidden_sync_frame" style="display:none;"></iframe>
-
-    <!-- WAKWAKへデータを送り届けるための隠しフォーム -->
-    <form id="hidden_sync_form" action="http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi" method="POST" target="hidden_sync_frame" style="display:none;">
-        <input type="hidden" name="namae" id="hidden_namae">
-        <input type="hidden" name="g" id="hidden_g">
-        <input type="hidden" name="cm" id="hidden_cm">
-    </form>
 
     <script>
         let fishRecords = JSON.parse(localStorage.getItem('mglf_batch_records')) || [];
@@ -173,8 +162,16 @@
             timeArea.innerHTML = getNowTimeString() + " 現在";
         }
 
-        // 未送信データを1件ずつ順番に、裏側（iframe）だけで自動連射する関数
+        // 本当に電波がつながっているか厳密にチェックして1件ずつ送信する処理
         function syncAllRecords() {
+            // iPhoneが完全にオフライン（飛行機モード等）なら即座に弾く
+            if (!navigator.onLine) {
+                const statusArea = document.getElementById('sync_status');
+                statusArea.style.color = "red";
+                statusArea.innerText = "【通信エラー】電波がありません。電波の良い場所へ移動してから押してください。";
+                return;
+            }
+
             let unsentRecords = fishRecords.filter(r => r.status === 0);
             const statusArea = document.getElementById('sync_status');
 
@@ -191,7 +188,6 @@
 
             function sendNext() {
                 if (index >= unsentRecords.length) {
-                    // 全件送り終わったら終了
                     statusArea.style.color = "green";
                     statusArea.innerText = "すべてのデータを同期しました！";
                     document.getElementById('sync_btn').disabled = false;
@@ -202,24 +198,43 @@
                 statusArea.innerText = `送信中... (${index + 1} / ${unsentRecords.length} 件目)`;
                 let record = unsentRecords[index];
 
-                // 隠しフォームに1件分のデータをセット
-                document.getElementById('hidden_namae').value = record.name;
-                document.getElementById('hidden_g').value = record.weight;
-                document.getElementById('hidden_cm').value = record.cm;
+                let encodedName = encodeURIComponent(record.name);
+                let encodedG = encodeURIComponent(record.weight);
+                let encodedCm = encodeURIComponent(record.cm);
 
-                // ステータスを送信済みに変更して即保存
-                record.status = 1;
-                localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
+                // CGIに直接GETリクエストを叩き込むURL
+                let targetUrl = `http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi?namae=${encodedName}&g=${encodedG}&cm=${encodedCm}`;
 
-                // 裏のiframeに向けてPOST送信を実行（親画面は1ミリも動きません）
-                document.getElementById('hidden_sync_form').submit();
+                let imgPing = new Image();
+                let hasResponded = false;
 
-                index++;
-                // WAKWAKサーバーがパンクしないよう、1.5秒の間隔を空けて次のデータを自動送信
-                setTimeout(sendNext, 1500);
+                // 通信成功、またはCORS制限に引っかかった（サーバーに到達した証拠）場合
+                imgPing.onload = imgPing.onerror = function() {
+                    if (hasResponded) return;
+                    hasResponded = true;
+
+                    // 本当にサーバーに届いた時だけ「同期済」にする
+                    record.status = 1;
+                    localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
+
+                    index++;
+                    setTimeout(sendNext, 1000);
+                };
+
+                // 2.5秒経っても応答がない場合は完全に電波がない（圏外）とみなす
+                setTimeout(() => {
+                    if (!hasResponded) {
+                        hasResponded = true;
+                        statusArea.style.color = "red";
+                        statusArea.innerText = `【同期失敗】電波が弱いため通信が途切れました。場所を変えてやり直してください。`;
+                        document.getElementById('sync_btn').disabled = false;
+                        updateDisplay(); // ここで嘘の「同期済」にはさせない
+                    }
+                }, 2500);
+
+                imgPing.src = targetUrl;
             }
 
-            // 連射スタート
             sendNext();
         }
 
