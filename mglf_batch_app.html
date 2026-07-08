@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGLF釣果報告・一括送信App8.5</title>
+    <title>MGLF釣果報告・一括送信App9.0</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="appstore.png">
     <link rel="icon" type="image/png" sizes="192x192" href="playstore.png">
@@ -21,10 +21,10 @@
         .form-group { margin-bottom: 10px; }
         label { display: block; font-weight: bold; font-size: 14px; margin-bottom: 3px; }
         input[type="text"], input[type="number"] { font-size: 16px; width: 100%; max-width: 200px; height: 2.2em; box-sizing: border-box; padding: 5px; }
-        input[type="button"] { font-size: 16px; height: 2.5em; margin-top: 10px; cursor: pointer; }
+        input[type="button"], input[type="submit"] { font-size: 16px; height: 2.5em; margin-top: 10px; cursor: pointer; }
         .btn-submit { background-color: #4CAF50; color: white; border: none; width: 48%; }
         .btn-clear { background-color: #f44336; color: white; border: none; width: 48%; }
-        .btn-sync { background-color: #ff9800; color: white; border: none; width: 100%; font-weight: bold; margin-top: 15px; height: 3em; }
+        .btn-sync { background-color: #ff9800; color: white; border: none; width: 100%; font-weight: bold; margin-top: 15px; height: 3em; -webkit-appearance: none; }
         hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
         .ranking-box { background-color: white; padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
         .rank-item { font-size: 16px; margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
@@ -36,8 +36,8 @@
 </head>
 <body>
 
-    <h2>MGLF釣果報告 (一括送信対応版)8.5</h2>
-    <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下の「一括同期」を押してください。</p>
+    <h2>MGLF釣果報告 (一括送信対応版)9.0</h2>
+    <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下のボタンで1件ずつ送信してください。</p>
 
     <div class="form-group">
         <label>名前 (最大4文字)</label>
@@ -59,7 +59,12 @@
 
     <div id="msg_area"></div>
 
-    <input type="button" class="btn-sync" id="sync_btn" value=" 電波復帰時にサーバーへ一括同期 " onclick="syncAllRecords()">
+    <form id="direct_sync_form" action="http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi" method="POST">
+        <input type="hidden" name="namae" id="hidden_namae">
+        <input type="hidden" name="g" id="hidden_g">
+        <input type="hidden" name="cm" id="hidden_cm">
+        <input type="submit" class="btn-sync" value=" 電波復帰時にサーバーへ同期する " onclick="return prepareDirectSync();">
+    </form>
     <div id="sync_status" style="font-size: 14px; font-weight: bold; margin-top: 5px;"></div>
 
     <hr>
@@ -162,77 +167,29 @@
             timeArea.innerHTML = getNowTimeString() + " 現在";
         }
 
-        function syncAllRecords() {
-            if (!navigator.onLine) {
-                const statusArea = document.getElementById('sync_status');
-                statusArea.style.color = "red";
-                statusArea.innerText = "【通信エラー】電波がありません。電波の良い場所へ移動してから押してください。";
-                return;
-            }
-
+        // ボタンが押されたら、最初の1件をセットして画面ごとWAKWAKへ吹っ飛ばす
+        function prepareDirectSync() {
             let unsentRecords = fishRecords.filter(r => r.status === 0);
-            const statusArea = document.getElementById('sync_status');
 
             if (unsentRecords.length === 0) {
-                statusArea.style.color = "blue";
-                statusArea.innerText = "未送信のデータはありません。";
-                return;
+                alert("未送信のデータはありません。");
+                return false;
             }
 
-            document.getElementById('sync_btn').disabled = true;
-            statusArea.style.color = "black";
-            
-            let index = 0;
+            // 最初の未送信データを取得
+            let record = unsentRecords[0];
 
-            function sendNext() {
-                if (index >= unsentRecords.length) {
-                    statusArea.style.color = "green";
-                    statusArea.innerText = "すべてのデータを同期しました！";
-                    document.getElementById('sync_btn').disabled = false;
-                    updateDisplay();
-                    return;
-                }
+            // フォームに値を詰め込む
+            document.getElementById('hidden_namae').value = record.name;
+            document.getElementById('hidden_g').value = record.weight;
+            document.getElementById('hidden_cm').value = record.cm;
 
-                statusArea.innerText = `送信中... (${index + 1} / ${unsentRecords.length} 件目)`;
-                let record = unsentRecords[index];
+            // 送信済みに書き換えて保存
+            record.status = 1;
+            localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-                let encodedName = encodeURIComponent(record.name);
-                let encodedG = encodeURIComponent(record.weight);
-                let encodedCm = encodeURIComponent(record.cm);
-
-                // ブラウザのキャッシュに邪魔されないよう、末尾に毎回違うランダムな数字（タイムスタンプ）を付与
-                let targetUrl = `http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi?namae=${encodedName}&g=${encodedG}&cm=${encodedCm}&_nocache=${Date.now()}`;
-
-                let imgPing = new Image();
-                let hasResponded = false;
-
-                // GitHub（外部）から叩くと、成功・CORSブロックに関わらず、サーバーに届いた瞬間に必ずここを通ります
-                imgPing.onload = imgPing.onerror = function() {
-                    if (hasResponded) return;
-                    hasResponded = true;
-
-                    record.status = 1;
-                    localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
-
-                    index++;
-                    setTimeout(sendNext, 1200);
-                };
-
-                // 本当に電波がない時用のタイムアウト
-                setTimeout(() => {
-                    if (!hasResponded) {
-                        hasResponded = true;
-                        statusArea.style.color = "red";
-                        statusArea.innerText = `【同期失敗】電波が弱いため通信が途切れました。場所を変えてやり直してください。`;
-                        document.getElementById('sync_btn').disabled = false;
-                        updateDisplay();
-                    }
-                }, 3000);
-
-                imgPing.src = targetUrl;
-            }
-
-            sendNext();
+            // trueを返すことで、通常の遷移（WAKWAKのCGIへの画面移動）を許可する
+            return true;
         }
 
         function clearAllData() {
