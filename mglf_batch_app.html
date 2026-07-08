@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGLF釣果報告・一括送信App9.0</title>
+    <title>MGLF釣果報告・一括送信App9.5</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="appstore.png">
     <link rel="icon" type="image/png" sizes="192x192" href="playstore.png">
@@ -36,7 +36,7 @@
 </head>
 <body>
 
-    <h2>MGLF釣果報告 (一括送信対応版)9.0</h2>
+    <h2>MGLF釣果報告 (一括送信対応版)9.5</h2>
     <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下のボタンで1件ずつ送信してください。</p>
 
     <div class="form-group">
@@ -65,7 +65,6 @@
         <input type="hidden" name="cm" id="hidden_cm">
         <input type="submit" class="btn-sync" value=" 電波復帰時にサーバーへ同期する " onclick="return prepareDirectSync();">
     </form>
-    <div id="sync_status" style="font-size: 14px; font-weight: bold; margin-top: 5px;"></div>
 
     <hr>
     <h3>現場での暫定順位（3匹重量制）</h3>
@@ -167,7 +166,7 @@
             timeArea.innerHTML = getNowTimeString() + " 現在";
         }
 
-        // ボタンが押されたら、最初の1件をセットして画面ごとWAKWAKへ吹っ飛ばす
+        // ボタンが押されたとき、最初の1件をセットして画面ごとWAKWAKへ飛ばす処理
         function prepareDirectSync() {
             let unsentRecords = fishRecords.filter(r => r.status === 0);
 
@@ -176,19 +175,19 @@
                 return false;
             }
 
-            // 最初の未送信データを取得
+            // 1個目の未送信データを抽出
             let record = unsentRecords[0];
 
-            // フォームに値を詰め込む
+            // 見えない本物のフォームにデータをコピー
             document.getElementById('hidden_namae').value = record.name;
             document.getElementById('hidden_g').value = record.weight;
             document.getElementById('hidden_cm').value = record.cm;
 
-            // 送信済みに書き換えて保存
+            // 送信済に変えて端末に保存
             record.status = 1;
             localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-            // trueを返すことで、通常の遷移（WAKWAKのCGIへの画面移動）を許可する
+            // trueを返すことで、通常の遷移（WAKWAKへの画面移動）を実行
             return true;
         }
 
@@ -198,7 +197,6 @@
                 localStorage.removeItem('mglf_batch_records');
                 updateDisplay();
                 document.getElementById('msg_area').innerHTML = "";
-                document.getElementById('sync_status').innerHTML = "";
             }
         }
 
