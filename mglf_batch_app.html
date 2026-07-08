@@ -1,26 +1,12 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('オフラインモード準備完了'))
-      .catch((err) => console.log('登録失敗:', err));
-  }
-</script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MGLF釣果報告・一括送信App1.0</title>
-    
-    <!-- iPhone (iOS) ホーム画面追加用のアイコン指定 -->
     <link rel="apple-touch-icon" href="appstore.png">
-    
-    <!-- Android (Chrome等) ホーム画面追加用のアイコン指定 -->
     <link rel="icon" type="image/png" sizes="192x192" href="playstore.png">
     <meta name="mobile-web-app-capable" content="yes">
-    
     <style>
         body { background-color: #f0f8ff; font-family: sans-serif; color: #333; padding: 10px; }
         h2 { color: blue; border-bottom: 2px solid blue; padding-bottom: 5px; font-size: 18px; margin-top: 5px; }
@@ -45,8 +31,8 @@
     <h2>MGLF釣果報告 (一括送信対応版)1.0</h2>
     <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下の「一括同期」を押してください。</p>
 
-    <!-- 👇ここをセキュリティ突破のために「見えない本物のフォーム」に変更しました -->
-    <form id="real_submit_form" method="POST" action="https://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi" accept-charset="UTF-8" target="_blank">
+    <!-- 送信用フォーム（Safariのブロックを回避する通常ウィンドウ送信） -->
+    <form id="real_submit_form" method="POST" action="https://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi" accept-charset="UTF-8">
         <input type="hidden" name="namae" id="form_namae">
         <input type="hidden" name="g" id="form_g">
         <input type="hidden" name="cm" id="form_cm">
@@ -72,17 +58,14 @@
 
     <div id="msg_area"></div>
 
-    <!-- 電波がつながったときに押すボタン -->
     <input type="button" class="btn-sync" value=" 電波復帰時にサーバーへ一括同期 " onclick="syncToServer()">
     <div id="sync_status" style="font-size: 12px; font-weight: bold; margin-top: 5px;"></div>
 
     <hr>
-
     <h3>現場での暫定順位（3匹重量制）</h3>
     <div class="ranking-box" id="ranking_area">
         <font size="2" color="blue">まだ誰も釣れていません</font>
     </div>
-
     <div id="time_area" style="font-size: 13px; margin-top: 10px; font-weight: bold;"></div>
 
     <hr>
@@ -90,13 +73,7 @@
     <div class="log-box" id="log_area">履歴はありません</div>
 
     <script>
-        // CGIのパス
-        const CGI_URL = "https://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi";
-
-        // ローカル保存データ
         let fishRecords = JSON.parse(localStorage.getItem('mglf_batch_records')) || [];
-
-        // 起動時描画
         updateDisplay();
 
         function addData() {
@@ -122,13 +99,11 @@
             });
 
             localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
-
             document.getElementById('weight').value = "";
             document.getElementById('cm').value = "";
 
             msgArea.className = "success-msg";
             msgArea.innerHTML = "釣果データをローカルに保存しました！";
-            
             updateDisplay();
         }
 
@@ -188,7 +163,6 @@
 
         function syncToServer() {
             let unsentRecords = fishRecords.filter(r => r.status === 0);
-
             if (unsentRecords.length === 0) {
                 alert("未送信のデータはありません。");
                 return;
@@ -196,7 +170,6 @@
 
             let record = unsentRecords[0];
 
-            // 見えない本物のフォームにデータを入れて、ユーザー自身のタップから直接送信させる（ブロック回避）
             document.getElementById('form_namae').value = record.name;
             document.getElementById('form_g').value = record.weight;
             document.getElementById('form_cm').value = record.cm;
@@ -204,7 +177,7 @@
             record.status = 1;
             localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
-            // 送信実行
+            // Safariに絶対にブロックされないよう、現在の画面をWAKWAKに切り替えて送信します
             document.getElementById('real_submit_form').submit();
         }
 
