@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MGLF釣果報告・一括送信App8.0</title>
+    <title>MGLF釣果報告・一括送信App8.5</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="appstore.png">
     <link rel="icon" type="image/png" sizes="192x192" href="playstore.png">
@@ -36,7 +36,7 @@
 </head>
 <body>
 
-    <h2>MGLF釣果報告 (一括送信対応版)8.0</h2>
+    <h2>MGLF釣果報告 (一括送信対応版)8.5</h2>
     <p style="font-size: 12px; color: #555;">ダムではそのまま入力。電波がつながったら下の「一括同期」を押してください。</p>
 
     <div class="form-group">
@@ -162,9 +162,7 @@
             timeArea.innerHTML = getNowTimeString() + " 現在";
         }
 
-        // 本当に電波がつながっているか厳密にチェックして1件ずつ送信する処理
         function syncAllRecords() {
-            // iPhoneが完全にオフライン（飛行機モード等）なら即座に弾く
             if (!navigator.onLine) {
                 const statusArea = document.getElementById('sync_status');
                 statusArea.style.color = "red";
@@ -202,35 +200,34 @@
                 let encodedG = encodeURIComponent(record.weight);
                 let encodedCm = encodeURIComponent(record.cm);
 
-                // CGIに直接GETリクエストを叩き込むURL
-                let targetUrl = `http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi?namae=${encodedName}&g=${encodedG}&cm=${encodedCm}`;
+                // ブラウザのキャッシュに邪魔されないよう、末尾に毎回違うランダムな数字（タイムスタンプ）を付与
+                let targetUrl = `http://park22.wakwak.com/~mglf/cgi-bin/mglf2.cgi?namae=${encodedName}&g=${encodedG}&cm=${encodedCm}&_nocache=${Date.now()}`;
 
                 let imgPing = new Image();
                 let hasResponded = false;
 
-                // 通信成功、またはCORS制限に引っかかった（サーバーに到達した証拠）場合
+                // GitHub（外部）から叩くと、成功・CORSブロックに関わらず、サーバーに届いた瞬間に必ずここを通ります
                 imgPing.onload = imgPing.onerror = function() {
                     if (hasResponded) return;
                     hasResponded = true;
 
-                    // 本当にサーバーに届いた時だけ「同期済」にする
                     record.status = 1;
                     localStorage.setItem('mglf_batch_records', JSON.stringify(fishRecords));
 
                     index++;
-                    setTimeout(sendNext, 1000);
+                    setTimeout(sendNext, 1200);
                 };
 
-                // 2.5秒経っても応答がない場合は完全に電波がない（圏外）とみなす
+                // 本当に電波がない時用のタイムアウト
                 setTimeout(() => {
                     if (!hasResponded) {
                         hasResponded = true;
                         statusArea.style.color = "red";
                         statusArea.innerText = `【同期失敗】電波が弱いため通信が途切れました。場所を変えてやり直してください。`;
                         document.getElementById('sync_btn').disabled = false;
-                        updateDisplay(); // ここで嘘の「同期済」にはさせない
+                        updateDisplay();
                     }
-                }, 2500);
+                }, 3000);
 
                 imgPing.src = targetUrl;
             }
